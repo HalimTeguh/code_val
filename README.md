@@ -46,8 +46,8 @@ Gabungan dari keempat skor di atas dengan bobot:
 
 1️⃣ Clone repository ini (atau download zip):
 ```bash
-git clone https://github.com/yourusername/your-repo.git
-cd your-repo
+git clone https://github.com/HalimTeguh/code_val.git
+cd code_val
 ```
 
 2️⃣ Buat virtual environment (opsional namun disarankan):
@@ -57,7 +57,7 @@ python -m venv venv
 Aktifkan environment:
 - Windows:
   ```bash
-  venv\Scriptsctivate
+  venv\Scripts\ctivate
   ```
 - Mac/Linux:
   ```bash
