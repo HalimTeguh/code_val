@@ -5,9 +5,15 @@ from weighted_ngram_match import compute_weighted_bleu
 from syntax_match import calc_syntax_match
 from dataflow_match import corpus_dataflow_match
 from typing import Dict
+from dotenv import load_dotenv
 import ast
+import os
+import requests
+import json
+
 
 app = Flask(__name__)
+load_dotenv()
 
 def load_keywords_weights(file_path: str, default_weight: float = 1.5) -> Dict[str, float]:
     """Load keyword weights from file"""
@@ -50,6 +56,57 @@ def evaluate_code():
         'dataflow_match_score': dataflow_score,
         'total_score': total_score
     })
+
+# Endpoint baru untuk AI
+@app.route('/askLlama', methods=['POST'])
+def generate_soal():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt')  # Gunakan 'prompt' langsung dari request JSON
+
+        if not prompt:
+            return jsonify({'success': False, 'message': 'Prompt harus diisi.'}), 400
+
+        api_url = 'https://router.huggingface.co/together/v1/chat/completions'
+        api_token = os.environ.get('HUGGINGFACE_API_TOKEN')
+
+        response = requests.post(
+            api_url,
+            headers={'Authorization': f'Bearer {api_token}'},
+            json={
+                'model': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+                'messages': [
+                    {'role': 'user', 'content': prompt}
+                ],
+                'temperature': 0.3,
+                'top_p': 0.85,
+                'max_tokens': 3072
+            },
+            timeout=60
+        )
+
+        if response.status_code != 200:
+            return jsonify({'success': False, 'message': 'Model gagal merespons.'}), 500
+
+        json_text = response.json().get('choices', [{}])[0].get('message', {}).get('content')
+        if not json_text:
+            return jsonify({'success': False, 'message': 'Tidak ada konten yang dikembalikan oleh model.'}), 422
+
+        json_start = json_text.find('[')
+        if json_start == -1:
+            return jsonify({'success': False, 'message': 'Output tidak mengandung JSON array.'}), 422
+
+        clean_json = json_text[json_start:]
+        try:
+            data = json.loads(clean_json)
+        except json.JSONDecodeError as e:
+            return jsonify({'success': False, 'message': f'Gagal parsing JSON: {str(e)}', 'raw': clean_json}), 422
+
+        return jsonify({'success': True, 'data': data})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Terjadi kesalahan saat memanggil API: {str(e)}'}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
