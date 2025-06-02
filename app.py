@@ -82,7 +82,7 @@ def generate_soal():
                 'top_p': 0.85,
                 'max_tokens': 3072
             },
-            timeout=60
+            timeout=300
         )
 
         if response.status_code != 200:
