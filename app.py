@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify
 from bleu import compute_bleu, tokenize_code
 from weighted_ngram_match import compute_weighted_bleu
@@ -10,7 +9,11 @@ import ast
 import os
 import requests
 import json
+import logging
 
+# Setup logger for production
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 load_dotenv()
@@ -36,17 +39,14 @@ def evaluate_code():
     if not reference_code or not hypothesis_code:
         return jsonify({'error': 'Both reference_code and hypothesis_code are required'}), 400
 
-    # Tokenize code properly
     ref_tokens = [tokenize_code(reference_code)]
     hyp_tokens = tokenize_code(hypothesis_code)
 
-    # Compute scores
     bleu_score = compute_bleu([ref_tokens], [hyp_tokens])
     weighted_bleu = compute_weighted_bleu([ref_tokens], [hyp_tokens], keyword_weights)
     syntax_score = calc_syntax_match(reference_code, hypothesis_code)
     dataflow_score = corpus_dataflow_match([reference_code], hypothesis_code)
 
-    # Combine scores (CodeBLEU uses 0.25 weight for each component)
     total_score = round(0.25*bleu_score + 0.25*weighted_bleu + 0.5*syntax_score + 0.25*dataflow_score, 4)
 
     return jsonify({
@@ -57,12 +57,11 @@ def evaluate_code():
         'total_score': total_score
     })
 
-# Endpoint baru untuk AI
 @app.route('/askLlama', methods=['POST'])
 def generate_soal():
     try:
         data = request.get_json()
-        prompt = data.get('prompt')  # Gunakan 'prompt' langsung dari request JSON
+        prompt = data.get('prompt')
 
         if not prompt:
             return jsonify({'success': False, 'message': 'Prompt harus diisi.'}), 400
@@ -86,6 +85,7 @@ def generate_soal():
         )
 
         if response.status_code != 200:
+            logger.error(f"Hugging Face API error: {response.status_code} {response.text}")
             return jsonify({'success': False, 'message': 'Model gagal merespons.'}), 500
 
         json_text = response.json().get('choices', [{}])[0].get('message', {}).get('content')
@@ -100,13 +100,13 @@ def generate_soal():
         try:
             data = json.loads(clean_json)
         except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
             return jsonify({'success': False, 'message': f'Gagal parsing JSON: {str(e)}', 'raw': clean_json}), 422
 
         return jsonify({'success': True, 'data': data})
 
     except Exception as e:
+        logger.exception("Unexpected error in /askLlama")
         return jsonify({'success': False, 'message': f'Terjadi kesalahan saat memanggil API: {str(e)}'}), 500
 
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+# Note: Tidak perlu lagi app.run() di production.
