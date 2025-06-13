@@ -79,7 +79,7 @@ def generate_soal():
                 ],
                 'temperature': 0.3,
                 'top_p': 0.85,
-                'max_tokens': 3072
+                'max_tokens': 5120
             },
             timeout=600
         )
